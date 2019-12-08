@@ -14,10 +14,6 @@ const bodyParser = require("body-parser");
 const parserMiddleware = bodyParser.json();
 app.use(parserMiddleware);
 
-// MIDDLEWARE TO SUPPORT PAGINATION
-const paginate = require("express-paginate");
-app.use(paginate.middleware(10, 50));
-
 // MODEL
 const Movie = db.define("movie", {
   title: {
@@ -31,7 +27,7 @@ const Movie = db.define("movie", {
   }
 });
 
-db.sync({ force: true })
+db.sync()
   .then(() => console.log("Database connected"))
   .then(() => {
     const movies = [
@@ -97,34 +93,18 @@ app.delete("/movie/:id", (request, response, next) =>
     .catch(error => next(error))
 );
 
-// PAGINATION: tried 2 different approaches - one is commented out below!
+// PAGINATION
 
-app.get("/movie", async (req, res, next) => {
-  Movie.findAndCountAll({ limit: req.query.limit, offset: req.skip }).then(
-    results => {
-      const total = results.count;
-      const pageCount = Math.ceil(results.count / req.query.limit);
-      res
-        .send({
-          data: results.rows,
-          pageCount,
-          total,
-          pages: paginate.getArrayPages(req)(3, pageCount, req.query.page)
-        })
-        .catch(error => next(error));
-    }
-  );
+app.get("/movies", (req, response, next) => {
+  const limit = req.query.limit || 10;
+  const offset = req.query.offset || 0;
+
+  Movie.findAndCountAll({ limit, offset })
+    .then(result => {
+      const pageCount = Math.ceil(result.count / limit);
+      response.send({ data: result.rows, total: result.count, pageCount });
+    })
+    .catch(error => next(error));
 });
-// app.get("/movie", (req, response, next) => {
-//   const limit = Math.min(req.query.limit || 1, 5);
-//   const offset = req.query.offset || 1;
-
-//   Movie.findAndCountAll({
-//     limit,
-//     offset
-//   })
-//     .then(result => response.send({ data: result.rows, total: result.count }))
-//     .catch(error => next(error));
-// });
 
 app.listen(port, () => console.log(`Listening on port ${port}!`));
