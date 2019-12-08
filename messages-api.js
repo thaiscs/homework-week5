@@ -1,36 +1,36 @@
 const express = require("express");
-const app = express();
-const port = 3000;
+
+// BODY PARSER
 const bodyParser = require("body-parser");
 const parserMiddleware = bodyParser.json();
-const reqBodyParserText = bodyParser.text({ type: "*/*" });
 
-// app.use(parserMiddleware);
-app.use(reqBodyParserText);
+// SERVER INIT
+const app = express();
+const port = process.env.PORT || 3000;
+app.use(parserMiddleware);
+app.listen(port, () => console.log(`Listening on port ${port}!`));
 
-let limit = 5;
-
-const numberOfRequests = () => (req, res, next) => {
-  if (req.body) {
-    return limit--;
-  } else if (limit === 0) {
-    return res.status(429);
+// VALIDATION FUNCTION
+let count = 1;
+const validationMiddleware = (req, res, next) => {
+  if (count > 5) {
+    return res.status(429).end();
+  } else {
+    count++;
+    next();
   }
-  next();
 };
 
-app.post("/messages", numberOfRequests, (req, res, next) => {
-  req.accepts(["text"]);
-  req.get("content-type");
-  console.log(req.body);
-
-  if (!req.body || !req.is("text/html")) {
-    return res.status(400).send({ message: "Please make a request body" });
+// API single end-point
+app.post("/messages", validationMiddleware, (req, res, next) => {
+  console.log(req.body.text);
+  if (!req.body.text || req.body.text === "") {
+    return res
+      .status(400)
+      .send({ message: "Please make a request body with a text property" });
   } else {
     return res.json({
       message: "Message received loud and clear"
     });
   }
 });
-
-app.listen(port, () => console.log(`Listening on port ${port}!`));
